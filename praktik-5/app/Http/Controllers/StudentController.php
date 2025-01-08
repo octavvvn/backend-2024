@@ -4,60 +4,119 @@ namespace App\Http\Controllers;
 
 use App\Models\Student;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Validator;
 
 class StudentController extends Controller
 {
+    // Mengambil semua data mahasiswa
     public function index()
     {
         $students = Student::all();
 
+        if ($students->isEmpty()) {
+            return response()->json([
+                'message' => 'Data mahasiswa tidak ditemukan'
+            ], 404);
+        }
+
         return response()->json([
-            'message' => 'Get all student',
+            'message' => 'Data semua mahasiswa berhasil diambil',
             'data' => $students
         ], 200);
     }
-    public function store(Request $request)
+
+    // Mengambil satu data mahasiswa berdasarkan ID
+    public function show($id)
     {
-        $student = Student::create([
-            'nama' => $request->nama,
-            'nim' => $request->nim,
-            'email' => $request->email,
-            'jurusan' => $request->jurusan,
-        ]);
+        $student = Student::find($id);
+
+        if (!$student) {
+            return response()->json([
+                'message' => 'Data mahasiswa dengan ID ' . $id . ' tidak ditemukan'
+            ], 404);
+        }
 
         return response()->json([
-            'message' => 'Student created successfully',
+            'message' => 'Data mahasiswa berhasil diambil',
+            'data' => $student
+        ], 200);
+    }
+
+    // Menambah data mahasiswa baru
+    public function store(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'nama' => 'required|string',
+            'nim' => 'required|string|unique:students,nim',
+            'email' => 'required|email|unique:students,email',
+            'jurusan' => 'required|string',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => 'Gagal menambahkan data mahasiswa, data tidak lengkap atau format salah',
+                'errors' => $validator->errors()
+            ], 400);
+        }
+
+        $student = Student::create($request->only('nama', 'nim', 'email', 'jurusan'));
+
+        return response()->json([
+            'message' => 'Data mahasiswa berhasil ditambahkan',
             'data' => $student
         ], 201);
     }
 
+    // Mengupdate data mahasiswa berdasarkan ID
     public function update(Request $request, $id)
     {
-        // Find the student by ID
-        $student = Student::findOrFail($id);
+        $student = Student::find($id);
 
-        // Update student with new data
-        $student->update([
-            'nama' => $request->nama,
-            'nim' => $request->nim,
-            'email' => $request->email,
-            'jurusan' => $request->jurusan,
+        if (!$student) {
+            return response()->json([
+                'message' => 'Data mahasiswa dengan ID ' . $id . ' tidak ditemukan'
+            ], 404);
+        }
+
+        // Validasi data yang akan diupdate
+        $validator = Validator::make($request->all(), [
+            'nama' => 'sometimes|required|string',
+            'nim' => 'sometimes|required|string|unique:students,nim,' . $id,
+            'email' => 'sometimes|required|email|unique:students,email,' . $id,
+            'jurusan' => 'sometimes|required|string',
         ]);
 
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => 'Gagal memperbarui data mahasiswa, data tidak lengkap atau format salah',
+                'errors' => $validator->errors()
+            ], 400);
+        }
+
+        // Mengupdate data mahasiswa dengan data baru
+        $student->update($request->only('nama', 'nim', 'email', 'jurusan'));
+
         return response()->json([
-            'message' => 'Student updated successfully',
+            'message' => 'Data mahasiswa berhasil diperbarui',
             'data' => $student
         ], 200);
     }
 
-    // Method to delete a student
+    // Menghapus data mahasiswa berdasarkan ID
     public function destroy($id)
     {
-        $student = Student::findOrFail($id);
+        $student = Student::find($id);
+
+        if (!$student) {
+            return response()->json([
+                'message' => 'Data mahasiswa dengan ID ' . $id . ' tidak ditemukan, penghapusan gagal'
+            ], 404);
+        }
+
         $student->delete();
 
         return response()->json([
-            'message' => 'Student deleted successfully'
+            'message' => 'Data mahasiswa berhasil dihapus'
         ], 200);
     }
 }
